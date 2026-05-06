@@ -1,15 +1,22 @@
 [build]
+  # Folder tempat menyimpan fungsi Netlify
   functions = "netlify/functions"
+  # Folder publik untuk file statis
   publish = "."
 
 [functions]
+  # Menggunakan esbuild untuk bundle fungsi (lebih cepat)
   node_bundler = "esbuild"
+  # Timeout untuk fungsi (default 10 detik)
+  timeout = 30
 
+# Redirect untuk API endpoint
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
+# Fallback ke index.html untuk SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
