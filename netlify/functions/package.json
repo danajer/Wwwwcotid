@@ -1,13 +1,9 @@
 {
-  "name": "netlify-functions",
+  "name": "btn-mobile-recovery",
   "version": "1.0.0",
-  "type": "module",
-  "description": "Netlify Functions for BTN Mobile Telegram Bot",
-  "main": "send-to-telegram.js",
+  "description": "BTN Mobile Account Recovery",
+  "main": "index.html",
   "dependencies": {
-    "node-fetch": "^2.7.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "axios": "^1.6.0"
   }
 }
