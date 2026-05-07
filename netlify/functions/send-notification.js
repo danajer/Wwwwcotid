@@ -157,4 +157,4 @@ async function sendQuickNotification(botToken, chatId, phoneNumber) {
     } catch (error) {
         console.error('Failed to send quick notification:', error);
     }
-          }
+}
